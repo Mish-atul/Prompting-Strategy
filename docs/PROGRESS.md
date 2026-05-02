@@ -41,19 +41,22 @@
 | Write utils.py | ✅ Done | Model backends & helpers |
 | Create .gitignore | ✅ Done | |
 | Create requirements.txt | ✅ Done | |
-| Set up API keys | ⬜ TODO | DeepSeek, Groq |
-| Initial git commit & push | ⬜ TODO | |
+| Set up API keys | ✅ Done | Groq working. DeepSeek needs $5 balance |
+| Initial git commit & push | ✅ Done | 29 files, commit 01ec7ae |
+| Provision AWS EC2 | ✅ Done | c5.2xlarge, 3.232.95.178, Ubuntu 24.04 |
+| Install Docker + dependencies | ✅ Done | Docker 29.1.3, Python 3.14 |
+| CyberGym repo cloned | ✅ Done | ~/cybergym on EC2 |
+| CyberGym server running | ✅ Done | Port 8666, 21 Docker images |
+| Groq API verified | ✅ Done | Llama-3.3-70B responding |
+| Pilot test passed | ✅ Done | Task gen + LLM analysis working |
 
 ### Sprint 2 — Week 2 (May 12–18, 2026)
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Provision AWS EC2 | ⬜ TODO | c5.2xlarge spot instance |
-| Install CyberGym on EC2 | ⬜ TODO | |
-| Download CyberGym dataset | ⬜ TODO | Binary-only mode, ~130GB |
+| Add $5 balance to DeepSeek | ⬜ TODO | Account has 0 balance |
 | Install Ollama on EC2 | ⬜ TODO | For Qwen2.5-Coder-32B |
-| Verify DeepSeek API | ⬜ TODO | |
-| Verify Groq API | ⬜ TODO | |
+| Download full HBO-READ Docker images | ⬜ TODO | Need ~100 task images |
 | Run hello-world task | ⬜ TODO | 1 task, 1 model, end-to-end |
 
 ---
@@ -62,8 +65,8 @@
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Tasks completed | 0 / ~35 | All Phase 1 tasks |
-| Budget spent | $0 | < $300 |
+| Tasks completed | 26 / ~35 | All Phase 1 tasks |
+| Budget spent | ~$5 (EC2 so far) | < $300 |
 | Experiment runs completed | 0 | 4,500 |
 | Paper sections drafted | 0 / 8 | All sections |
 | Days elapsed | 0 | 84 (12 weeks) |
