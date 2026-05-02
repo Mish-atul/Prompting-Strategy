@@ -1,0 +1,60 @@
+# Dependencies
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environment
+.env
+.env.local
+*.env
+
+# API Keys — NEVER commit these
+**/api_key*
+**/secret*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# CyberGym data (too large for git)
+cybergym_data/
+cybergym-server-data/
+*.tar.gz
+*.7z
+
+# Docker
+*.log
+
+# Experiment outputs (commit only summaries)
+data/results/**/logs/
+data/results/**/tmp/
+data/results/**/*.log
+
+# Large analysis files
+analysis/figures/*.png
+!analysis/figures/.gitkeep
+
+# Temporary
+*.tmp
+*.bak
+*.backup
+
+# PDF (will be in paper releases)
+docs/research_paper/*.aux
+docs/research_paper/*.bbl
+docs/research_paper/*.blg
+docs/research_paper/*.fdb_latexmk
+docs/research_paper/*.fls
+docs/research_paper/*.out
+docs/research_paper/*.synctex.gz
