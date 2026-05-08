@@ -5,22 +5,15 @@
 
 ---
 
-## Part 1: API Keys (2 needed — both free/cheap)
+## Part 1: API Keys (2 needed)
 
-### 1A. DeepSeek API Key (~5 min)
+### 1A. OpenRouter API Key (provided by mentor)
 
-**Cost:** ~$0.014 per million input tokens (absurdly cheap — our entire experiment costs ~$15)
+**Cost:** $10 budget supporting DeepSeek V4 Flash + NVIDIA Nemotron-3 Super 120B
 
-**Steps:**
-1. Go to https://platform.deepseek.com/
-2. Click **"Sign Up"** (top right)
-3. Register with email or Google account
-4. After login, click **"API Keys"** in the left sidebar
-5. Click **"Create new API key"**
-6. Copy the key — it looks like: `sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
-7. **Top up balance:** Click "Billing" → Add $5–10 (this is more than enough for all experiments)
+**Key:** Already provided via mentor — `sk-or-v1-...`
 
-> **Save this key — you'll give it to me as `DEEPSEEK_API_KEY`**
+> **Save this key — set it as `OPENROUTER_API_KEY` environment variable**
 
 ### 1B. Groq API Key (~3 min)
 
@@ -35,9 +28,6 @@
 6. Copy the key — it looks like: `gsk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx`
 
 > **Save this key — you'll give it to me as `GROQ_API_KEY`**
-
-### 1C. Qwen2.5-Coder-32B — NO API key needed
-This runs locally on the EC2 instance via Ollama. No signup required.
 
 ---
 

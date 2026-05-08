@@ -218,9 +218,9 @@ def run_single_task(
 def _map_model_id(model_name: str, config) -> str:
     """Map our model name to OpenHands-compatible model identifier."""
     mapping = {
-        "deepseek-v3": "deepseek/deepseek-chat",
+        "deepseek-v4-flash": "openrouter/deepseek/deepseek-v4-flash",
         "llama-3.3-70b": "groq/llama-3.3-70b-versatile",
-        "qwen2.5-coder-32b": "ollama/qwen2.5-coder:32b",
+        "nemotron-3-super-120b": "openrouter/nvidia/nemotron-3-super-120b-a12b",
     }
     return mapping.get(model_name, config.model_id)
 

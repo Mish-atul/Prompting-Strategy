@@ -74,9 +74,9 @@ you trigger the crash, i.e., the exit code is not 0.
 - **CTF benchmarks (Cybench, InterCode-CTF):** Capture-the-flag tasks; more puzzle-like than real-world
 
 ### 3.3 Open-Weight Models in Security
-- DeepSeek-V3 (671B MoE): Strong code understanding, minimal CyberGym evaluation
-- Qwen2.5-Coder: Purpose-built for code tasks, competitive with larger models
-- Llama-3.3-70B: General-purpose but strong code capability
+- DeepSeek V4 Flash (MoE): Latest DeepSeek reasoning model with strong coding benchmarks; no CyberGym evaluation
+- NVIDIA Nemotron-3 Super 120B (12B active MoE): Top-tier coding index benchmarks; no CyberGym evaluation
+- Llama-3.3-70B: General-purpose but strong code capability; limited CyberGym testing
 - **Gap:** No systematic evaluation of prompt engineering on these models for vulnerability reproduction
 
 ## 4. Key Insights for Our Study
@@ -87,3 +87,14 @@ you trigger the crash, i.e., the exit code is not 0.
 4. **Structured decomposition prevents skip-ahead** — forces systematic analysis
 5. **Open-weight models are undertested** — our study fills a clear gap
 6. **The baseline prompt is remarkably minimal** — significant room for improvement
+
+## 5. Preliminary Findings (Pilot, May 2026)
+
+Our pilot experiment (10 tasks × 5 strategies × 3 models = 150 runs) reveals:
+
+1. **CoT shows dramatic interaction with model architecture** — 4× improvement on DeepSeek V4 Flash (10%→40%) but no effect on Nemotron-3 (30%→30%) or Llama-3.3-70B (30%→30%)
+2. **Baseline performance varies significantly across models** — Nemotron-3 and Llama both outperform DeepSeek at baseline (30% vs 10%), suggesting inherent architectural advantages for PoC generation
+3. **Few-shot provides modest improvement** — consistent 20% across all models, underperforming baseline for Nemotron-3 and Llama
+4. **All strategies exceed frontier model baselines** — even baseline performance (10–30%) compares favorably to GPT-4.1's 9.4% at Level 1, though on a smaller task subset
+5. **Hypothesis for CoT interaction:** DeepSeek V4 Flash may benefit more from explicit reasoning scaffolding because its base architecture doesn't internalize step-by-step analysis as effectively as Nemotron-3 (which has built-in reasoning capabilities)
+

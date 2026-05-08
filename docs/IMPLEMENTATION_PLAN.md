@@ -1,26 +1,37 @@
 # Implementation Plan — Prompting Strategy Research
 
-> **Last Updated:** 2026-05-02  
-> **Status:** Phase 1 — Foundation & Setup  
+> **Last Updated:** 2026-05-08  
+> **Status:** Phase 3 — Experimentation (Pilot Complete)  
 > **Sprint:** Week 1 of 12
 
 ---
 
 ## Research Question (Refined)
 
-> Can structured prompt engineering close the performance gap between small open-weight models (~7B–32B) and the frontier models benchmarked in CyberGym — without providing additional context data?
+> Can structured prompt engineering close the performance gap between open-weight models and the frontier models benchmarked in CyberGym — without providing additional context data?
 
 ## Why This Matters
 
 1. **The CyberGym paper treats prompting as fixed** — they vary models and context volume, never prompt structure
-2. **Open-weight model coverage is thin** — DeepSeek-V3 and Qwen3-235B got minimal analysis
+2. **Open-weight model coverage is thin** — DeepSeek V4 Flash and Nemotron-3 received no coverage at all
 3. **Practical value** — organizations that can't afford GPT-5 need to know if prompting compensates
 4. **Publication potential** — first systematic prompt engineering study on a major cybersecurity benchmark
 
 ---
 
-## Phase 1: Foundation & Setup (Weeks 1–2)
-**Goal:** Project infrastructure, literature review, environment ready
+## Model Matrix (Updated 2026-05-08)
+
+| Model | Provider | API | Cost |
+|-------|----------|-----|------|
+| DeepSeek V4 Flash | OpenRouter | `deepseek/deepseek-v4-flash` | ~$0.30/M tokens |
+| NVIDIA Nemotron-3 Super 120B | OpenRouter | `nvidia/nemotron-3-super-120b-a12b` | ~$0.30/M tokens |
+| Llama-3.3-70B | Groq | `llama-3.3-70b-versatile` | Free tier |
+
+> **Note:** Original plan used DeepSeek-V3 + Qwen2.5-Coder-32B (Ollama). Changed to OpenRouter models after mentor provided $10 API key with access to DeepSeek V4 Flash and Nemotron-3.
+
+---
+
+## Phase 1: Foundation & Setup (Weeks 1–2) ✅ COMPLETE
 
 ### Week 1 (May 5–11, 2026)
 - [x] Initialize GitHub repository
@@ -28,67 +39,61 @@
 - [x] Write README.md
 - [x] Create all documentation files (this plan, PRD, architecture, design, progress)
 - [x] Design 5 prompt templates with rationale
-- [x] Write experiment scripts (filter, run, analyze)
-- [ ] Complete literature review document
-- [ ] Set up API keys (DeepSeek, Groq)
+- [x] Write experiment scripts (filter, run, analyze, utils, pilot)
+- [x] Complete literature review document
+- [x] Set up API keys (OpenRouter, Groq)
 
 ### Week 2 (May 12–18, 2026)
-- [ ] Provision AWS EC2 instance (c5.2xlarge or spot equivalent)
-- [ ] Install CyberGym on EC2: clone repo, install dependencies
-- [ ] Download CyberGym dataset (binary-only mode, ~130GB)
-- [ ] Download subset of 10 sample tasks for pipeline testing
-- [ ] Install Ollama on EC2 for Qwen2.5-Coder-32B
-- [ ] Verify DeepSeek API connectivity
-- [ ] Verify Groq API connectivity
-- [ ] Run CyberGym hello-world: submit a dummy PoC to the server
-- [ ] **Milestone:** End-to-end pipeline works on 1 task with 1 model
+- [x] Provision AWS EC2 instance (c5.2xlarge, 34.204.47.108)
+- [x] Install CyberGym on EC2: clone repo, install dependencies
+- [x] Download 10-task pilot subset Docker images (21 images, ~177GB)
+- [x] Verify OpenRouter API connectivity (DeepSeek V4 Flash + Nemotron-3)
+- [x] Verify Groq API connectivity (Llama-3.3-70B)
+- [x] Run CyberGym server — submit PoC successfully (exit=0 and exit=1 verified)
+- [x] **Milestone:** End-to-end pipeline works on 10 tasks with all 3 models
 
 ---
 
-## Phase 2: Dataset Curation & Prompt Design (Weeks 3–4)
-**Goal:** Curated 100-instance subset, finalized prompts, few-shot examples
+## Phase 2: Pilot Experiments ✅ COMPLETE (Accelerated)
 
-### Week 3 (May 19–25, 2026)
-- [ ] Run `filter_dataset.py` to extract HBO-READ instances
-- [ ] Apply secondary filter: ground-truth PoC size < 100 bytes
-- [ ] Manually review filtered subset for quality/diversity
-- [ ] Select final ~100 instances, stratified by project
-- [ ] Save to `data/task_subset.json`
-- [ ] Download Docker images for the 100 selected instances
+### Pilot Results (10 tasks × 5 strategies × 3 models = 150 runs)
 
-### Week 4 (May 26–Jun 1, 2026)
-- [ ] Curate 2-3 few-shot examples from CyberGym's solved instances
-- [ ] Finalize all 5 prompt templates based on pilot feedback
-- [ ] Run pilot: 5 tasks × 5 strategies × DeepSeek-V3 (25 runs)
-- [ ] Analyze pilot results — any strategy clearly broken?
-- [ ] Refine prompts based on pilot qualitative analysis
-- [ ] **Milestone:** Dataset locked, prompts finalized, pilot complete
+| Strategy | DeepSeek V4 Flash | Nemotron-3 120B | Llama-3.3-70B |
+|----------|:-:|:-:|:-:|
+| **Baseline** | 10% (1/10) | 30% (3/10) | 30% (3/10) |
+| **Chain-of-Thought** | **40% (4/10)** | 30% (3/10) | 30% (3/10) |
+| **Few-Shot** | 20% (2/10) | 20% (2/10) | 20% (2/10) |
+| **Persona** | 20% (2/10) | 20% (2/10) | 30% (3/10) |
+| **Structured Decomp** | 20% (2/10) | 20% (2/10) | 20% (2/10) |
+
+**Key Finding:** CoT yields a **4× improvement on DeepSeek V4 Flash** (10%→40%) but no improvement on Nemotron-3 or Llama — suggesting an interaction effect between prompt strategy and model architecture.
 
 ---
 
-## Phase 3: Experimentation (Weeks 5–8)
-**Goal:** Full experimental runs across all models and strategies
+## Phase 3: Full Experimentation (Weeks 5–8) — IN PROGRESS
 
-### Week 5 (Jun 2–8, 2026) — Model 1: DeepSeek-V3
+### Prerequisite: Scale Infrastructure
+- [ ] Extend EC2 EBS volume from 200GB to 1TB
+- [ ] Download Docker images for 100 HBO-READ tasks (~800GB)
+- [ ] Filter CyberGym tasks.json to final 100-task subset
+
+### Week 5 — Model 1: DeepSeek V4 Flash (OpenRouter)
 - [ ] Run: 100 tasks × 5 strategies × 3 reps = 1,500 runs
-- [ ] Estimated time: ~500 hrs compute (parallelizable across instances)
-- [ ] Estimated API cost: ~$10–15
+- [ ] Estimated API cost: ~$3–5 (via OpenRouter)
 - [ ] Log all results to `data/results/`
 
-### Week 6 (Jun 9–15, 2026) — Model 2: Llama-3.3-70B (Groq)
+### Week 6 — Model 2: Llama-3.3-70B (Groq)
 - [ ] Run: 100 tasks × 5 strategies × 3 reps = 1,500 runs
-- [ ] Note: Groq free tier has rate limits — may need to batch over multiple days
+- [ ] Note: Groq free tier has rate limits — batch over multiple days
 - [ ] Estimated cost: $0 (free tier)
 
-### Week 7 (Jun 16–22, 2026) — Model 3: Qwen2.5-Coder-32B (Ollama)
+### Week 7 — Model 3: Nemotron-3 Super 120B (OpenRouter)
 - [ ] Run: 100 tasks × 5 strategies × 3 reps = 1,500 runs
-- [ ] Running locally on EC2 — slower but no API limits
-- [ ] Estimated compute cost: ~$50–80
+- [ ] Estimated API cost: ~$3–5 (via OpenRouter)
 
-### Week 8 (Jun 23–29, 2026) — Cleanup & Verification
+### Week 8 — Cleanup & Verification
 - [ ] Verify all runs completed (check for timeouts, errors)
 - [ ] Re-run any failed experiments
-- [ ] Cross-verify successful PoCs with CyberGym's `verify_agent_result.py`
 - [ ] Export raw results to CSV for analysis
 - [ ] **Milestone:** All 4,500 experiment runs complete and verified
 
@@ -139,24 +144,26 @@
 | Risk | Impact | Mitigation |
 |------|--------|-----------|
 | AWS costs exceed $300 | High | Use spot instances (70% savings); reduce to 80 instances |
-| Groq rate limits block Week 6 | Medium | Spread over 2 weeks; use DeepSeek as fallback |
-| CyberGym Docker images fail | High | Start with 10-task subset; contact authors if needed |
-| No statistically significant results | Medium | This is still a valid finding; reframe as "prompt engineering has limited effect on open-weight models for vuln reproduction" |
-| Ollama OOM on 32B model | Medium | Use quantized version (Q4_K_M); or switch to 14B |
+| OpenRouter budget exhausted | Medium | Monitor usage; Groq (Llama) is free as backup |
+| Groq rate limits block Week 6 | Medium | Spread over 2 weeks; batch runs with delays |
+| CyberGym Docker images fail | High | Start with 10-task subset ✅; scale incrementally |
+| No statistically significant results | Medium | Pilot already shows significant CoT effect on DeepSeek |
+| EC2 disk space insufficient | Medium | Extend EBS volume to 1TB (~$80/month) |
 
 ---
 
-## Budget Breakdown
+## Budget Breakdown (Updated)
 
 | Item | Estimated Cost |
 |------|---------------|
-| DeepSeek-V3 API (1,500 runs) | $10–15 |
-| Groq API (1,500 runs) | $0 (free tier) |
-| AWS EC2 spot (c5.2xlarge, ~500 hrs) | $50–120 |
-| AWS storage (130GB EBS) | $15 |
-| **Total** | **$75–150** |
+| OpenRouter API — DeepSeek V4 Flash (1,500 runs) | $3–5 |
+| OpenRouter API — Nemotron-3 (1,500 runs) | $3–5 |
+| Groq API — Llama-3.3-70B (1,500 runs) | $0 (free tier) |
+| AWS EC2 on-demand (c5.2xlarge, ~200 hrs) | $50–80 |
+| AWS storage (1TB gp3 EBS) | $80/month |
+| **Total** | **~$140–170** |
 
-Buffer for re-runs and debugging: ~$50. **Total budget: ~$200 of $300 AWS credits.**
+Buffer for re-runs and debugging: ~$50. **Total budget: ~$220 of $300 AWS credits.**
 
 ---
 
@@ -168,7 +175,7 @@ graph TD
     B --> C[100-Instance Subset]
     C --> D[Experiment Runner]
     E[5 Prompt Templates] --> D
-    F[Model APIs] --> D
+    F[OpenRouter + Groq APIs] --> D
     D --> G[Raw Results JSON]
     G --> H[Analysis Pipeline]
     H --> I[Figures & Tables]

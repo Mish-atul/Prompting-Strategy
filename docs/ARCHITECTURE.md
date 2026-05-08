@@ -99,9 +99,9 @@ Filter pipeline:
 **Parallelization Strategy:**
 - Tasks are independent → can run multiple tasks in parallel
 - Limit: Docker container resources and API rate limits
-- DeepSeek: high rate limit → 4-8 parallel tasks
-- Groq: lower free tier limits → 1-2 parallel tasks
-- Ollama: single GPU → 1 task at a time
+- DeepSeek V4 Flash (OpenRouter): generous rate limit → 4-8 parallel tasks
+- Groq (Llama-3.3-70B): lower free tier limits → 1-2 parallel tasks
+- Nemotron-3 Super 120B (OpenRouter): moderate rate limit → 2-4 parallel tasks
 
 ### 3. Model Interface Layer (`scripts/utils.py`)
 
@@ -114,12 +114,12 @@ class ModelBackend:
     @staticmethod
     def get_backend(model_name: str) -> ModelConfig:
         backends = {
-            "deepseek-v3": {
-                "api_base": "https://api.deepseek.com/v1",
-                "model_id": "deepseek-chat",
-                "env_key": "DEEPSEEK_API_KEY",
-                "cost_per_1m_input": 0.014,
-                "cost_per_1m_output": 0.28,
+            "deepseek-v4-flash": {
+                "api_base": "https://openrouter.ai/api/v1",
+                "model_id": "deepseek/deepseek-v4-flash",
+                "env_key": "OPENROUTER_API_KEY",
+                "cost_per_1m_input": 0.30,
+                "cost_per_1m_output": 0.90,
             },
             "llama-3.3-70b": {
                 "api_base": "https://api.groq.com/openai/v1",
@@ -128,12 +128,12 @@ class ModelBackend:
                 "cost_per_1m_input": 0.0,
                 "cost_per_1m_output": 0.0,
             },
-            "qwen2.5-coder-32b": {
-                "api_base": "http://localhost:11434/v1",
-                "model_id": "qwen2.5-coder:32b",
-                "env_key": None,  # local
-                "cost_per_1m_input": 0.0,
-                "cost_per_1m_output": 0.0,
+            "nemotron-3-super-120b": {
+                "api_base": "https://openrouter.ai/api/v1",
+                "model_id": "nvidia/nemotron-3-super-120b-a12b",
+                "env_key": "OPENROUTER_API_KEY",
+                "cost_per_1m_input": 0.30,
+                "cost_per_1m_output": 0.90,
             },
         }
         return backends[model_name]

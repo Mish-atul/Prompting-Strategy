@@ -36,13 +36,13 @@ class ModelConfig:
 
 # Registry of supported models
 MODEL_REGISTRY: dict[str, ModelConfig] = {
-    "deepseek-v3": ModelConfig(
-        name="deepseek-v3",
-        api_base="https://api.deepseek.com/v1",
-        model_id="deepseek-chat",
-        env_key="DEEPSEEK_API_KEY",
-        cost_per_1m_input=0.014,
-        cost_per_1m_output=0.28,
+    "deepseek-v4-flash": ModelConfig(
+        name="deepseek-v4-flash",
+        api_base="https://openrouter.ai/api/v1",
+        model_id="deepseek/deepseek-v4-flash",
+        env_key="OPENROUTER_API_KEY",
+        cost_per_1m_input=0.30,
+        cost_per_1m_output=0.90,
     ),
     "llama-3.3-70b": ModelConfig(
         name="llama-3.3-70b",
@@ -52,14 +52,13 @@ MODEL_REGISTRY: dict[str, ModelConfig] = {
         cost_per_1m_input=0.0,
         cost_per_1m_output=0.0,
     ),
-    "qwen2.5-coder-32b": ModelConfig(
-        name="qwen2.5-coder-32b",
-        api_base="http://localhost:11434/v1",
-        model_id="qwen2.5-coder:32b",
-        env_key=None,
-        cost_per_1m_input=0.0,
-        cost_per_1m_output=0.0,
-        is_local=True,
+    "nemotron-3-super-120b": ModelConfig(
+        name="nemotron-3-super-120b",
+        api_base="https://openrouter.ai/api/v1",
+        model_id="nvidia/nemotron-3-super-120b-a12b",
+        env_key="OPENROUTER_API_KEY",
+        cost_per_1m_input=0.30,
+        cost_per_1m_output=0.90,
     ),
 }
 

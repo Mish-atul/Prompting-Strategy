@@ -10,13 +10,13 @@
 
 ## Abstract
 
-The CyberGym benchmark (Wang et al., 2025) evaluates AI agents on 1,507 real-world C/C++ memory-safety vulnerabilities, but treats the task prompt as a fixed constant while varying only the model and context volume. We investigate the **orthogonal axis**: holding context constant at Level 1 and systematically varying prompt structure across open-weight models. Using DeepSeek-V3, Qwen2.5-Coder-32B, and Llama-3.3-70B, we test 5 prompt strategies (Chain-of-Thought, Few-Shot, Persona, Structured Decomposition, and a baseline control) on a curated subset of ~100 Heap-buffer-overflow READ vulnerabilities with short ground-truth PoCs.
+The CyberGym benchmark (Wang et al., 2025) evaluates AI agents on 1,507 real-world C/C++ memory-safety vulnerabilities, but treats the task prompt as a fixed constant while varying only the model and context volume. We investigate the **orthogonal axis**: holding context constant at Level 1 and systematically varying prompt structure across open-weight models. Using DeepSeek V4 Flash, NVIDIA Nemotron-3 Super 120B, and Llama-3.3-70B (via OpenRouter and Groq APIs), we test 5 prompt strategies (Chain-of-Thought, Few-Shot, Persona, Structured Decomposition, and a baseline control) on a curated subset of ~100 Heap-buffer-overflow READ vulnerabilities with short ground-truth PoCs.
 
 ## Key Contributions
 
 1. **First systematic prompt engineering study on CyberGym** — the original paper never varies prompt structure
-2. **Open-weight model analysis** — DeepSeek-V3 and Qwen3 received minimal coverage in the paper; smaller models were barely touched
-3. **Cost-effectiveness analysis** — can $15-30 in API costs match $2,000+ in frontier model calls?
+2. **Open-weight model analysis** — DeepSeek V4 Flash, Nemotron-3 Super 120B, and Llama-3.3-70B received minimal coverage in the original paper
+3. **Cost-effectiveness analysis** — can $10-20 in API costs match $2,000+ in frontier model calls?
 4. **Practical guidance** — which prompting techniques help (and which don't) for vulnerability reproduction
 
 ## Project Structure
@@ -58,8 +58,8 @@ The CyberGym benchmark (Wang et al., 2025) evaluates AI agents on 1,507 real-wor
 
 | Model | Access Method | Cost | Parameters |
 |-------|-------------|------|------------|
-| DeepSeek-V3 | API (`api.deepseek.com`) | ~$0.014/M input tokens | 671B MoE |
-| Qwen2.5-Coder-32B | Ollama on AWS EC2 | ~$0.34/hr (c5.2xlarge) | 32B |
+| DeepSeek V4 Flash | OpenRouter API | ~$0.30/M input tokens | MoE |
+| NVIDIA Nemotron-3 Super 120B | OpenRouter API | ~$0.30/M input tokens | 120B MoE (12B active) |
 | Llama-3.3-70B | Groq API (free tier) | Free | 70B |
 
 ## Prompt Strategies
@@ -77,7 +77,7 @@ The CyberGym benchmark (Wang et al., 2025) evaluates AI agents on 1,507 real-wor
 ### Prerequisites
 - Python 3.11+
 - Docker (for CyberGym server)
-- API keys: DeepSeek, Groq (both free/cheap)
+- API keys: OpenRouter ($10 budget), Groq (free tier)
 
 ### Setup
 ```bash
@@ -89,8 +89,8 @@ cd Prompting-Strategy
 pip install -r requirements.txt
 
 # Set API keys
-export DEEPSEEK_API_KEY=your_key_here
-export GROQ_API_KEY=your_key_here
+export OPENROUTER_API_KEY=your_key_here   # For DeepSeek V4 Flash + Nemotron-3
+export GROQ_API_KEY=your_key_here          # For Llama-3.3-70B (free tier)
 ```
 
 ### Running Experiments

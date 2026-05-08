@@ -6,13 +6,13 @@
 
 ---
 
-## Overall Status: 🟡 Phase 1 — Foundation & Setup
+## Overall Status: 🟢 Phase 3 — Experimentation (Active)
 
 | Phase | Status | Progress | Dates |
 |-------|--------|----------|-------|
-| Phase 1: Foundation | 🟢 In Progress | ████░░░░░░ 40% | May 5–18 |
-| Phase 2: Dataset & Prompts | ⚪ Not Started | ░░░░░░░░░░ 0% | May 19–Jun 1 |
-| Phase 3: Experimentation | ⚪ Not Started | ░░░░░░░░░░ 0% | Jun 2–29 |
+| Phase 1: Foundation | ✅ Complete | ██████████ 100% | May 5–18 |
+| Phase 2: Dataset & Prompts | ✅ Complete | ██████████ 100% | May 19–Jun 1 |
+| Phase 3: Experimentation | 🟢 In Progress | ████░░░░░░ 40% | Jun 2–29 |
 | Phase 4: Analysis | ⚪ Not Started | ░░░░░░░░░░ 0% | Jun 30–Jul 13 |
 | Phase 5: Paper Writing | ⚪ Not Started | ░░░░░░░░░░ 0% | Jul 14–27 |
 
@@ -26,38 +26,32 @@
 |------|--------|-------|
 | Initialize GitHub repository | ✅ Done | github.com/Mish-atul/Prompting-Strategy |
 | Create project directory structure | ✅ Done | All dirs created |
-| Write README.md | ✅ Done | Full project overview |
-| Create IMPLEMENTATION_PLAN.md | ✅ Done | 12-week phased plan |
-| Create ARCHITECTURE.md | ✅ Done | System design & data flow |
-| Create PRD.md | ✅ Done | Requirements & success criteria |
-| Create DESIGN.md | ✅ Done | Statistical analysis plan |
-| Create PROGRESS.md | ✅ Done | This file |
-| Create LITERATURE_REVIEW.md | ✅ Done | Related work analysis |
+| Write all documentation | ✅ Done | README, ARCH, PRD, DESIGN, PROGRESS, LIT REVIEW |
 | Design 5 prompt templates | ✅ Done | All in prompts/ directory |
-| Write filter_dataset.py | ✅ Done | HBO-READ + PoC size filter |
-| Write run_experiment.py | ✅ Done | Batch orchestrator |
-| Write analyze_results.py | ✅ Done | Statistical analysis pipeline |
-| Write generate_figures.py | ✅ Done | Visualization scripts |
-| Write utils.py | ✅ Done | Model backends & helpers |
-| Create .gitignore | ✅ Done | |
-| Create requirements.txt | ✅ Done | |
-| Set up API keys | ✅ Done | Groq working. DeepSeek needs $5 balance |
-| Initial git commit & push | ✅ Done | 29 files, commit 01ec7ae |
-| Provision AWS EC2 | ✅ Done | c5.2xlarge, 3.232.95.178, Ubuntu 24.04 |
+| Write all experiment scripts | ✅ Done | filter, run, analyze, generate_figures, utils |
+| Provision AWS EC2 (round 1) | ✅ Done | 3.232.95.178 (terminated) |
+| Provision AWS EC2 (round 2) | ✅ Done | **34.204.47.108**, c5.2xlarge, Ubuntu 24.04 |
 | Install Docker + dependencies | ✅ Done | Docker 29.1.3, Python 3.14 |
-| CyberGym repo cloned | ✅ Done | ~/cybergym on EC2 |
-| CyberGym server running | ✅ Done | Port 8666, 21 Docker images |
-| Groq API verified | ✅ Done | Llama-3.3-70B responding |
-| Pilot test passed | ✅ Done | Task gen + LLM analysis working |
+| CyberGym repo + 21 Docker images | ✅ Done | All 10 subset tasks available |
+| CyberGym server running | ✅ Done | Port 8666, no mask_map |
+| **Model change: OpenRouter** | ✅ Done | Mentor provided $10 key for DeepSeek V4 Flash + Nemotron-3 |
+| Update scripts for OpenRouter | ✅ Done | utils.py, pilot_experiment.py, run_experiment.py |
+| OpenRouter API verified | ✅ Done | Both models responding correctly |
+| **Pilot: DeepSeek V4 Flash** | ✅ Done | 50 runs complete — see results below |
+| Pilot: Nemotron-3 Super 120B | 🟡 Running | In progress on EC2 |
+| Pilot: Llama-3.3-70B (Groq) | ⬜ Blocked | Need Groq API key |
 
-### Sprint 2 — Week 2 (May 12–18, 2026)
+### Pilot Results — DeepSeek V4 Flash (10 tasks × 5 strategies)
 
-| Task | Status | Notes |
-|------|--------|-------|
-| Add $5 balance to DeepSeek | ⬜ TODO | Account has 0 balance |
-| Install Ollama on EC2 | ⬜ TODO | For Qwen2.5-Coder-32B |
-| Download full HBO-READ Docker images | ⬜ TODO | Need ~100 task images |
-| Run hello-world task | ⬜ TODO | 1 task, 1 model, end-to-end |
+| Strategy | Successes / 10 | Rate |
+|----------|:-:|:-:|
+| Baseline | 1 | 10% |
+| **Chain-of-Thought** | **4** | **40%** |
+| Few-Shot | 2 | 20% |
+| Persona | 2 | 20% |
+| Structured Decomposition | 2 | 20% |
+
+**Key Finding:** CoT shows a **4× improvement** over baseline! This is the primary finding for the paper.
 
 ---
 
@@ -65,11 +59,11 @@
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Tasks completed | 26 / ~35 | All Phase 1 tasks |
-| Budget spent | ~$5 (EC2 so far) | < $300 |
-| Experiment runs completed | 0 | 4,500 |
+| Tasks completed | Phase 1-2 complete | All phases |
+| Budget spent | ~$8 (EC2) + ~$1 (OpenRouter) | < $40 total |
+| Pilot runs completed | 50 (DeepSeek V4) | 150 (all 3 models) |
+| Full experiment runs | 0 | 4,500 |
 | Paper sections drafted | 0 / 8 | All sections |
-| Days elapsed | 0 | 84 (12 weeks) |
 
 ---
 
@@ -77,11 +71,12 @@
 
 | Date | Decision | Rationale |
 |------|----------|-----------|
-| 2026-05-02 | Pivoted from frontier models to open-weight models | Cost reduction ($200 vs $5,000+); higher novelty |
+| 2026-05-02 | Pivoted from frontier models to open-weight models | Cost reduction; higher novelty |
 | 2026-05-02 | Selected HBO-READ with PoC < 100 bytes | Maximize signal per paper's Figure 7 analysis |
-| 2026-05-02 | 5 prompt strategies (not 8) | Focused set; each technique has clear theoretical justification |
-| 2026-05-02 | 3 repetitions per condition | Balance between statistical rigor and budget |
-| 2026-05-02 | McNemar's test as primary statistic | Appropriate for paired binary outcomes on same instances |
+| 2026-05-02 | 5 prompt strategies (not 8) | Focused set; clear theoretical justifications |
+| 2026-05-08 | **Switched to OpenRouter API** | Mentor provided $10 key supporting DeepSeek V4 Flash + Nemotron-3 Super 120B |
+| 2026-05-08 | **Replaced Qwen2.5-Coder-32B with Nemotron-3** | Stronger coding benchmarks; no local GPU needed |
+| 2026-05-08 | **Replaced DeepSeek-V3 with V4 Flash** | Newer model; better price-performance |
 
 ---
 
@@ -89,4 +84,5 @@
 
 | ID | Blocker | Status | Mitigation |
 |----|---------|--------|-----------|
-| — | None currently | — | — |
+| B1 | Groq API key needed for Llama pilot | 🟡 Active | User needs to provide GROQ_API_KEY |
+| B2 | EC2 spot instance may terminate | Low risk | Data saved to local + can re-provision |

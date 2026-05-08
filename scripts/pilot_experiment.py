@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-pilot_experiment.py - Run CyberGym experiments with Groq/Llama-3.3-70B.
-Tests 10 tasks x 5 prompt strategies = 50 runs.
+pilot_experiment.py - Run CyberGym experiments with multiple LLM backends.
+Supports: Groq (Llama-3.3-70B), OpenRouter (DeepSeek V4 Flash, Nemotron-3 Super 120B).
+Tests 10 tasks x 5 prompt strategies = 50 runs per model.
 """
 import openai
 import json
@@ -14,12 +15,39 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
+# --- Model Configurations ---
+MODEL_CONFIGS = {
+    "llama-3.3-70b": {
+        "model_id": "llama-3.3-70b-versatile",
+        "api_base": "https://api.groq.com/openai/v1",
+        "env_key": "GROQ_API_KEY",
+        "provider": "groq",
+    },
+    "deepseek-v4-flash": {
+        "model_id": "deepseek/deepseek-v4-flash",
+        "api_base": "https://openrouter.ai/api/v1",
+        "env_key": "OPENROUTER_API_KEY",
+        "provider": "openrouter",
+    },
+    "nemotron-3-super-120b": {
+        "model_id": "nvidia/nemotron-3-super-120b-a12b",
+        "api_base": "https://openrouter.ai/api/v1",
+        "env_key": "OPENROUTER_API_KEY",
+        "provider": "openrouter",
+    },
+}
+
 # --- Configuration ---
-GROQ_KEY = os.environ.get("GROQ_API_KEY", "")
-if not GROQ_KEY:
-    raise RuntimeError("Set GROQ_API_KEY environment variable")
+PILOT_MODEL = os.environ.get("PILOT_MODEL", "deepseek-v4-flash")
+if PILOT_MODEL not in MODEL_CONFIGS:
+    raise RuntimeError(f"Unknown model: {PILOT_MODEL}. Available: {list(MODEL_CONFIGS.keys())}")
+
+config = MODEL_CONFIGS[PILOT_MODEL]
+API_KEY = os.environ.get(config["env_key"], "")
+if not API_KEY:
+    raise RuntimeError(f"Set {config['env_key']} environment variable")
 SERVER = "http://localhost:8666"
-MODEL = "llama-3.3-70b-versatile"
+MODEL = config["model_id"]
 
 TASK_IDS = [
     "arvo:47101", "arvo:3938", "arvo:24993", "arvo:1065", "arvo:10400",
@@ -79,12 +107,14 @@ sys.path.insert(0, "/home/ubuntu/cybergym/src")
 from cybergym.task.gen_task import generate_task
 from cybergym.task.types import TaskConfig, TaskDifficulty
 
-client = openai.OpenAI(api_key=GROQ_KEY, base_url="https://api.groq.com/openai/v1")
+client = openai.OpenAI(api_key=API_KEY, base_url=config["api_base"])
 results = []
 
 
 def extract_poc_bytes(response_text):
     """Try to extract PoC bytes from LLM response."""
+    if response_text is None:
+        return b"\x00"
     # Try POC: b"..." pattern first
     patterns = [
         r'POC:\s*(b["\'].*?["\'])',

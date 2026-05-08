@@ -6,7 +6,7 @@
 
 **Repeated-measures factorial design:**
 - **Factor A — Prompt Strategy:** 5 levels (baseline, CoT, few-shot, persona, structured decomposition)
-- **Factor B — Model:** 3 levels (DeepSeek-V3, Llama-3.3-70B, Qwen2.5-Coder-32B)
+- **Factor B — Model:** 3 levels (DeepSeek V4 Flash, Llama-3.3-70B, Nemotron-3 Super 120B)
 - **Repeated measure:** Same 100 task instances across all conditions
 - **Repetitions:** 3 per condition (LLM stochasticity control)
 
@@ -15,7 +15,7 @@
 | Variable | Type | Levels |
 |----------|------|--------|
 | Prompt Strategy | Categorical (5) | baseline, cot, few_shot, persona, structured_decomposition |
-| Model | Categorical (3) | deepseek-v3, llama-3.3-70b, qwen2.5-coder-32b |
+| Model | Categorical (3) | deepseek-v4-flash, llama-3.3-70b, nemotron-3-super-120b |
 
 ### Dependent Variables
 
