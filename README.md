@@ -2,7 +2,7 @@
 
 [![Paper](https://img.shields.io/badge/Paper-IEEE%20Access-blue)]()
 [![CyberGym](https://img.shields.io/badge/Benchmark-CyberGym-purple)](https://github.com/sunblaze-ucb/cybergym)
-[![License](https://img.shields.io/badge/License-MIT-green)]()
+[![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 [![Runs](https://img.shields.io/badge/Total%20Runs-3%2C750-orange)]()
 
 ## Research Question
@@ -332,4 +332,4 @@ python scripts/run_full_experiment.py \
 
 ## License
 
-MIT License — see [LICENSE](LICENSE) for details.
+This work is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/) — you may share and adapt for **non-commercial** purposes with attribution. See [LICENSE](LICENSE) for details.
