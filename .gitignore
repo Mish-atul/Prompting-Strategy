@@ -49,12 +49,20 @@ data/results/**/*.log
 analysis/figures/*.png
 !analysis/figures/.gitkeep
 
-# Temporary
+# Temporary / debug scripts
 *.tmp
 *.bak
 *.backup
 
 # LaTeX build artifacts
+IEEE Access/*.aux
+IEEE Access/*.bbl
+IEEE Access/*.blg
+IEEE Access/*.fdb_latexmk
+IEEE Access/*.fls
+IEEE Access/*.out
+IEEE Access/*.synctex.gz
+IEEE Access/*.pdf
 docs/research_paper/*.aux
 docs/research_paper/*.bbl
 docs/research_paper/*.blg
@@ -63,7 +71,7 @@ docs/research_paper/*.fls
 docs/research_paper/*.out
 docs/research_paper/*.synctex.gz
 
-# Test scripts (not needed in repo)
+# Test/debug scripts (not needed in repo)
 scripts/test_*.py
 scripts/check_*.py
 scripts/inspect_*.py

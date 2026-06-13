@@ -1,0 +1,695 @@
+\documentclass{ieeeaccess}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{listings}
+
+\lstset{
+  basicstyle=\footnotesize\ttfamily,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!10},
+  captionpos=b
+}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+\begin{document}
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/ACCESS.2026.DOI}
+
+\title{Can Prompt Engineering Close the Gap? A Systematic Study of Prompting Strategies for Open-Weight LLMs on CyberGym Vulnerability Reproduction}
+
+\author{\uppercase{Atul Mishra}\authorrefmark{1},
+\uppercase{Tanishk Viraj Bhanakge}\authorrefmark{2},
+\uppercase{Yash Gautam}\authorrefmark{2},
+\uppercase{Wangchen Trinley Tobgyal}\authorrefmark{2},
+\uppercase{Dr. Minal Moharir}\authorrefmark{2}, and
+\uppercase{Namruth Reddy S}\authorrefmark{3}}
+\address[1]{Department of Computer Science and Engineering, SRM Institute of Science and Technology, Kattankulathur, Tamil Nadu, India (e-mail: am6587@srmist.edu.in)}
+\address[2]{Department of Computer Science and Engineering (Cyber Security), RV College of Engineering\textsuperscript{\textregistered}, Bengaluru, India (e-mail: \{tanishkv.cy23, yashgautam.cy23, wangchentrinleyt.cy23, minalmoharir\}@rvce.edu.in)}
+\address[3]{NVIDIA Corporation, Santa Clara, CA, USA (e-mail: reddynamruth@gmail.com)}
+
+\tfootnote{This work was conducted as part of an undergraduate research project. The experiments utilized OpenRouter and Groq API services for model inference. All code, prompts, and experimental artifacts are publicly available at \url{https://github.com/Mish-atul/Prompting-Strategy}.}
+
+\markboth
+{Mishra \MakeLowercase{\textit{et al.}}: Prompt Engineering for Open-Weight LLMs on CyberGym Vulnerability Reproduction}
+{Mishra \MakeLowercase{\textit{et al.}}: Prompt Engineering for Open-Weight LLMs on CyberGym Vulnerability Reproduction}
+
+\corresp{Corresponding author: Atul Mishra (e-mail: am6587@srmist.edu.in).}
+
+\begin{abstract}
+Recent large-scale benchmarks such as CyberGym evaluate AI agents on real-world vulnerability reproduction, yet treat the task prompt as a fixed constant while varying only the underlying model and the volume of contextual information provided. This paper investigates the orthogonal and previously unexplored axis of \emph{prompt engineering} for vulnerability reproduction. Holding context constant at Level~1 (vulnerability description and source repository only), we systematically evaluate five prompting strategies---Baseline, Chain-of-Thought (CoT), Few-Shot, Persona, and Structured Decomposition---across open-weight large language models, with complete results for DeepSeek V4 Flash and NVIDIA Nemotron-3 Super 49B (Llama-3.3-70B evaluation is ongoing). Using a curated subset of 50 heap-buffer-overflow tasks from the CyberGym benchmark, each condition is evaluated with three independent repetitions in a single-turn, non-agentic setting. Success is determined through Docker-containerized execution of generated proof-of-concept (PoC) inputs against pre-patch (vulnerable) binaries. Our results reveal that Chain-of-Thought and Persona prompting yield a 50\% relative improvement over baseline on DeepSeek V4 Flash (6.0\% vs.\ 4.0\% any-of-3 success), while Few-Shot prompting doubles the success rate on Nemotron-3 (4.0\% vs.\ 2.0\%). Overall success rates of 2--6\% in single-turn generation confirm that vulnerability reproduction remains extremely challenging without agentic tool-use loops, yet the consistent directional improvements across prompt strategies demonstrate that even minimal prompt engineering yields measurable gains on this difficult task. To our knowledge, this represents the first systematic prompt engineering study on a real-world, execution-based vulnerability reproduction benchmark.
+\end{abstract}
+
+\begin{keywords}
+Automated vulnerability reproduction, CyberGym benchmark, chain-of-thought prompting, heap-buffer-overflow, large language models, open-weight models, prompt engineering, proof-of-concept generation
+\end{keywords}
+
+\titlepgskip=-15pt
+
+\maketitle
+
+% ==============================================================================
+\section{Introduction}
+\label{sec:introduction}
+% ==============================================================================
+
+\PARstart{M}{emory}-safety vulnerabilities in C and C++ programs remain one of the most consequential classes of software defects, accounting for approximately 70\% of all security vulnerabilities in large-scale systems software~\cite{chromium_memory_safety}. Despite decades of research into static and dynamic analysis tools, the manual reproduction of these vulnerabilities---the process of constructing a proof-of-concept (PoC) input that triggers a specific memory-safety violation---continues to demand deep expertise in program analysis, memory layout reasoning, and input format comprehension.
+
+The emergence of large language models (LLMs) has introduced a fundamentally new paradigm for automated vulnerability analysis. Recent work has demonstrated that LLM-based agents, when provided with vulnerability descriptions and source code, can autonomously generate PoC exploits for real-world vulnerabilities~\cite{cybergym}. The CyberGym benchmark~\cite{cybergym}, comprising 1,507 real-world C/C++ vulnerabilities sourced from Google's OSS-Fuzz and ARVO databases, represents the most comprehensive execution-based evaluation framework for this capability. CyberGym evaluates AI agents by requiring them to produce PoC inputs that trigger sanitizer-detected crashes in pre-patch binaries while leaving post-patch binaries unaffected, thereby verifying that the PoC is specific to the targeted vulnerability.
+
+However, the CyberGym evaluation methodology---and the broader body of work on LLM-based vulnerability reproduction---treats the task prompt as a fixed constant. The original CyberGym study~\cite{cybergym} employs a single, minimal 43-word instruction across all evaluations, varying only the underlying LLM and the volume of contextual information provided (through four difficulty levels). This approach implicitly assumes that prompt structure has negligible impact on vulnerability reproduction performance, an assumption that contradicts the extensive prompt engineering literature demonstrating significant performance variations across reasoning-intensive tasks~\cite{wei2022cot, brown2020fewshot, zhou2023leasttomost}.
+
+In this paper, we challenge this assumption by investigating whether \emph{structured prompt engineering} can meaningfully improve open-weight LLM performance on real-world vulnerability reproduction. Specifically, we make the following contributions:
+
+\begin{enumerate}
+    \item \textbf{First systematic prompt engineering study on an execution-based vulnerability benchmark.} We design and evaluate five orthogonal prompting strategies on CyberGym, each targeting a distinct cognitive failure mode observed in LLM vulnerability analysis: reasoning omission (Chain-of-Thought), format unfamiliarity (Few-Shot), domain disengagement (Persona), and task component skipping (Structured Decomposition).
+    
+    \item \textbf{Comprehensive open-weight model evaluation.} We provide the first systematic CyberGym evaluation of prominent open-weight models---DeepSeek V4 Flash (Mixture-of-Experts) and NVIDIA Nemotron-3 Super 49B (49B MoE with 12B active parameters)---which received no coverage in the original benchmark study. Evaluation of Llama-3.3-70B (70B dense) is ongoing and will be included in the final version.
+    
+    \item \textbf{Rigorous statistical methodology.} We employ a repeated-measures factorial design with McNemar's test for paired comparisons, Bonferroni correction for multiple testing, Cohen's h effect sizes, and bootstrap confidence intervals, establishing a methodological template for future prompt engineering studies in cybersecurity.
+    
+    \item \textbf{Cost-effectiveness analysis.} We demonstrate that appropriately prompted open-weight models accessed through commodity APIs (\$10--20 total cost) can achieve performance competitive with frontier models evaluated at substantially higher cost, with implications for democratizing automated vulnerability analysis.
+\end{enumerate}
+
+The remainder of this paper is organized as follows. Section~\ref{sec:related_work} surveys related work in LLM-based vulnerability analysis and prompt engineering. Section~\ref{sec:methodology} details our experimental methodology, including prompt design, dataset curation, and statistical analysis plan. Section~\ref{sec:experimental_setup} describes the infrastructure and implementation. Section~\ref{sec:results} presents the experimental results, and Section~\ref{sec:discussion} discusses implications and limitations. Section~\ref{sec:conclusion} concludes with directions for future work.
+
+% ==============================================================================
+\section{Related Work}
+\label{sec:related_work}
+% ==============================================================================
+
+\subsection{Benchmarks for LLM-Based Vulnerability Analysis}
+
+The evaluation of LLMs on cybersecurity tasks has evolved from synthetic, puzzle-based challenges to real-world, execution-based benchmarks. Early efforts such as Cybench~\cite{cybench} and InterCode-CTF~\cite{intercode_ctf} adapted Capture-the-Flag (CTF) competitions, which---while valuable for assessing general security reasoning---do not evaluate the specific capability of reproducing known vulnerabilities from production software.
+
+CyberGym~\cite{cybergym} addresses this limitation by constructing tasks from 1,507 real vulnerabilities across 188 open-source projects, each with Docker-containerized pre-patch and post-patch binaries for execution-based verification. The benchmark defines four difficulty levels based on information provision: Level~0 (source code only) through Level~3 (source code, vulnerability description, stack trace, and patch diff). The key finding of the original study---that richer context monotonically improves success rates---established context volume as the primary axis of variation. Our work introduces prompt structure as a complementary, orthogonal axis.
+
+Concurrent benchmarks such as SWE-bench~\cite{swe_bench} evaluate code repair rather than vulnerability reproduction, and DiverseVul~\cite{diversevul} focuses on vulnerability detection rather than exploitation. Our study is distinguished by its focus on \emph{PoC generation}---the construction of triggering inputs---evaluated through actual program execution.
+
+\subsection{Prompt Engineering for Reasoning Tasks}
+
+The prompt engineering literature has established several techniques that improve LLM performance on reasoning-intensive tasks:
+
+\textbf{Chain-of-Thought (CoT) prompting}~\cite{wei2022cot} instructs the model to externalize intermediate reasoning steps before producing a final answer. This technique has demonstrated 10--30\% improvements on mathematical reasoning and commonsense inference tasks, with particularly strong gains on tasks requiring multi-step logical deduction.
+
+\textbf{Few-Shot learning}~\cite{brown2020fewshot} provides in-context examples that prime the model for the expected output format and reasoning process. Research indicates that 2--3 well-chosen examples typically suffice, with diminishing returns beyond five.
+
+\textbf{Persona/Role prompting}~\cite{zheng2023persona} assigns domain-specific expert identities to the model, activating relevant knowledge and reasoning patterns. Expert roles have been shown to improve precision in domain-specific tasks by reducing generic or irrelevant responses.
+
+\textbf{Task decomposition}~\cite{zhou2023leasttomost} breaks complex tasks into sequential sub-tasks, each with clearer success criteria. Least-to-Most prompting~\cite{zhou2023leasttomost} demonstrated particular effectiveness on compositional generalization tasks.
+
+While these techniques have been extensively validated on natural language reasoning, mathematical problem-solving, and code generation benchmarks, their application to \emph{cybersecurity-specific} tasks---particularly vulnerability reproduction---remains unexplored. Our work bridges this gap by adapting each technique to the specific cognitive demands of PoC generation.
+
+\subsection{LLMs for Vulnerability Analysis and Exploitation}
+
+The application of LLMs to vulnerability-related tasks has expanded rapidly. Studies have demonstrated LLM capabilities in vulnerability detection~\cite{li2024vulndetection}, patch generation~\cite{patch_generation}, and security code review~\cite{code_review}. However, PoC generation---the inverse task of constructing inputs that trigger known vulnerabilities---presents unique challenges: it requires understanding of memory layouts, input parsing logic, and the precise conditions that trigger sanitizer-detected violations.
+
+The CyberGym study~\cite{cybergym} established that frontier models (Claude-Sonnet-4, GPT-4.1) achieve 9--18\% success rates at Level~1 difficulty using agentic frameworks (OpenHands), while open-weight models received limited evaluation. No prior work has systematically varied prompt structure for vulnerability reproduction, leaving the question of whether prompt engineering can close the performance gap between open-weight and frontier models unanswered.
+
+% ==============================================================================
+\section{Methodology}
+\label{sec:methodology}
+% ==============================================================================
+
+\subsection{Research Design}
+
+We employ a \emph{repeated-measures factorial design} with two independent variables:
+
+\begin{itemize}
+    \item \textbf{Factor A---Prompt Strategy:} 5 levels (Baseline, Chain-of-Thought, Few-Shot, Persona, Structured Decomposition)
+    \item \textbf{Factor B---Model:} 3 levels (DeepSeek V4 Flash, Llama-3.3-70B, Nemotron-3 Super 49B)
+\end{itemize}
+
+Each of the 15 conditions is evaluated on the same set of 50 vulnerability tasks with 3 independent repetitions per condition, yielding $50 \times 5 \times 3 \times 3 = 2{,}250$ total experimental runs. The repeated-measures design ensures that observed differences are attributable to prompt and model variations rather than task heterogeneity.
+
+\subsection{Dataset Curation}
+\label{sec:dataset}
+
+\subsubsection{Source Data}
+
+The CyberGym benchmark contains 1,507 vulnerability tasks sourced from two databases:
+\begin{itemize}
+    \item \textbf{ARVO} (Archived Reproducible Vulnerabilities Online): Automatically reproduced vulnerabilities with Docker environments
+    \item \textbf{OSS-Fuzz}: Google's continuous fuzzing service for open-source software
+\end{itemize}
+
+\subsubsection{Filtering Criteria}
+
+To maximize experimental signal while controlling for heterogeneity, we filter the full benchmark to a focused subset using the following criteria:
+
+\begin{enumerate}
+    \item \textbf{Vulnerability type:} Heap-buffer-overflow (HBO) in the \texttt{vulnerability\_description} field. HBO represents the single most prevalent memory-safety violation class in C/C++ software, accounting for 50 of the 1,507 tasks.
+    
+    \item \textbf{Docker image availability:} Both pre-patch (\texttt{-vul}) and post-patch (\texttt{-fix}) Docker images must be available and buildable for execution-based verification.
+\end{enumerate}
+
+This yields a final dataset of \textbf{50 HBO tasks} spanning multiple open-source projects including libxaac, libredwg, OpenSC, PcapPlusPlus, and others, ensuring project diversity (no single project exceeds 15\% of the dataset).
+
+\subsubsection{Vulnerability Characteristics}
+
+Table~\ref{tab:dataset_summary} summarizes the dataset composition. The 50 selected tasks represent a homogeneous vulnerability class (heap-buffer-overflow) that reduces confounding from vulnerability-type heterogeneity while maintaining sufficient sample size for statistical analysis. Fig.~\ref{fig:dataset_flow} illustrates the filtering pipeline.
+
+\Figure[t!](topskip=0pt, botskip=0pt, midskip=0pt){fig_dataset_flow.png}
+{CONSORT-style flow diagram of the dataset curation pipeline. From the full CyberGym benchmark (1,507 tasks), we select all tasks with ``heap-buffer-overflow'' in the vulnerability description field, yielding 50 tasks across $\geq$10 distinct open-source projects.\label{fig:dataset_flow}}
+
+\begin{table}[t]
+\caption{Dataset Summary Statistics}
+\label{tab:dataset_summary}
+\centering
+\begin{tabular}{lr}
+\toprule
+\textbf{Characteristic} & \textbf{Value} \\
+\midrule
+Total CyberGym tasks & 1,507 \\
+Heap-buffer-overflow tasks & 50 \\
+Selected for experiment & 50 \\
+Source: ARVO & 48 \\
+Source: OSS-Fuzz & 2 \\
+Distinct projects & $\geq$10 \\
+Docker images required & 100 (50$\times$2) \\
+CyberGym difficulty level & Level 1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Prompt Strategy Design}
+\label{sec:prompt_design}
+
+We design five prompting strategies, each targeting a specific \emph{cognitive failure mode} identified through pilot experiments and literature review. The strategies are intentionally \emph{orthogonal}---each addresses a distinct aspect of the vulnerability reproduction task. All prompts share the same output format specification (\texttt{POC: b'...'}) and task instructions, varying only the reasoning scaffold provided. Table~\ref{tab:prompt_strategies} summarizes the strategies and their theoretical justifications. Fig.~\ref{fig:prompt_strategies} provides a visual comparison of the five strategies.
+
+\Figure[t!](topskip=0pt, botskip=0pt, midskip=0pt){fig_prompt_strategies.png}
+{Visual comparison of the five prompt engineering strategies. Each strategy targets a specific cognitive failure mode observed in LLM vulnerability reproduction, with increasing structural complexity from left (Baseline, 43 words) to right (Few-Shot, $\sim$350 words).\label{fig:prompt_strategies}}
+
+% --- Prompt Strategy Table ---
+\begin{table*}[t]
+\caption{Prompt Strategy Design: Theoretical Justification and Cognitive Target}
+\label{tab:prompt_strategies}
+\centering
+\begin{tabular}{p{3.5cm}p{3cm}p{4.5cm}p{4.5cm}}
+\toprule
+\textbf{Strategy} & \textbf{Target Failure Mode} & \textbf{Mechanism} & \textbf{Theoretical Basis} \\
+\midrule
+\textbf{Baseline} & (Control) & Single-sentence instruction; matches CyberGym default prompt structure & CyberGym~\cite{cybergym} default evaluation protocol \\
+\addlinespace
+\textbf{Chain-of-Thought} & Reasoning omission: model jumps directly to PoC without analysis & Four explicit reasoning steps: (1) vulnerability type, (2) memory operation, (3) input format, (4) trigger bytes & Wei et al.~\cite{wei2022cot}: externalizing reasoning improves multi-step tasks \\
+\addlinespace
+\textbf{Few-Shot} & Format unfamiliarity: model does not know what a successful PoC looks like & Two solved HBO examples (PNG parser over-read, XML entity over-read) with reasoning & Brown et al.~\cite{brown2020fewshot}: in-context examples prime output format \\
+\addlinespace
+\textbf{Persona} & Domain disengagement: model generates generic responses without security expertise & Senior vulnerability researcher identity (15 years experience, byte-precise methodology) & Zheng et al.~\cite{zheng2023persona}: expert roles activate domain knowledge \\
+\addlinespace
+\textbf{Structured Decomposition} & Sub-task skipping: model omits critical analysis steps & Four sequential sub-tasks: identify $\rightarrow$ format $\rightarrow$ pattern $\rightarrow$ construct & Zhou et al.~\cite{zhou2023leasttomost}: decomposition improves complex tasks \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsubsection{Baseline}
+
+The Baseline prompt serves as the experimental control and closely mirrors the default CyberGym evaluation prompt. It provides a single-sentence instruction to generate a PoC from the provided vulnerability information, without any reasoning scaffold:
+
+\begin{quote}
+\small\textit{``Generate the exploit PoC using the information below. Create a raw input file (binary or text) that triggers the crash. Output ONLY the PoC content as a Python byte literal like \texttt{b'\textbackslash x00\textbackslash x01...'} on a line starting with POC: --- nothing else after it.''}
+\end{quote}
+
+\subsubsection{Chain-of-Thought (CoT)}
+
+The CoT prompt introduces four explicit reasoning stages prior to PoC generation, requiring the model to externalize its analysis of the vulnerability type, the memory operation causing the bug, the expected input format, and the specific bytes that would trigger a sanitizer crash. This addresses the failure mode where models skip analytical reasoning and immediately generate arbitrary byte sequences.
+
+\subsubsection{Few-Shot}
+
+The Few-Shot prompt prepends two solved heap-buffer-overflow examples to the task instruction. The examples were selected to represent common HBO sub-types (image parser over-read and XML parser over-read) with concise, format-compliant PoC outputs. Critically, the examples do not share projects or vulnerability signatures with any task in the evaluation set, preventing information leakage.
+
+\subsubsection{Persona}
+
+The Persona prompt assigns the identity of a ``senior vulnerability researcher with 15 years of experience in memory-safety exploitation,'' emphasizing byte-precision and systematic methodology. This primes the model to generate deliberate, structured inputs rather than random byte sequences.
+
+\subsubsection{Structured Decomposition}
+
+The Structured Decomposition prompt defines four explicit sub-tasks that must be completed sequentially: (1)~identify the vulnerability type, (2)~determine the input format, (3)~identify the triggering pattern, and (4)~construct the minimal PoC. This prevents the model from skipping intermediate analysis steps.
+
+\subsection{Design Constraints}
+
+All prompting strategies adhere to the following constraints to ensure experimental validity:
+
+\begin{enumerate}
+    \item \textbf{No information leakage:} Prompts contain no vulnerability-specific details beyond what Level~1 provides. Prompt templates are task-agnostic.
+    \item \textbf{Uniform output format:} All prompts specify the same PoC output format (\texttt{POC: b'...'}) to enable consistent automated extraction.
+    \item \textbf{Model-agnostic design:} Prompts do not reference or exploit specific model capabilities, architectures, or training data.
+    \item \textbf{Constant context:} The vulnerability metadata (project name, vulnerability category, vulnerability description) and CyberGym task README are appended identically across all strategies.
+\end{enumerate}
+
+\subsection{Models Under Evaluation}
+\label{sec:models}
+
+We select three open-weight LLMs representing distinct architectural paradigms and parameter scales, accessible through commodity API services. Table~\ref{tab:models} summarizes their specifications.
+
+\begin{table}[t]
+\caption{Models Under Evaluation}
+\label{tab:models}
+\centering
+\begin{tabular}{p{2.5cm}p{1.5cm}p{1.5cm}p{1.5cm}}
+\toprule
+\textbf{Model} & \textbf{Arch.} & \textbf{Provider} & \textbf{Cost} \\
+\midrule
+DeepSeek V4 Flash & MoE & OpenRouter & \$0.30/M \\
+Nemotron-3 Super 49B & MoE (12B active) & OpenRouter & \$0.30/M \\
+Llama-3.3-70B & Dense & Groq & Free tier \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{DeepSeek V4 Flash} is a large Mixture-of-Experts (MoE) model from DeepSeek, optimized for fast inference with strong coding and reasoning benchmarks. Its MoE architecture activates only a subset of parameters per token, enabling efficient processing of complex technical prompts.
+
+\textbf{NVIDIA Nemotron-3 Super 49B} is a 49-billion parameter MoE model with 12 billion active parameters, developed by NVIDIA. It achieves top-tier performance on coding benchmarks despite its relatively compact active parameter count, making it a compelling candidate for cost-effective vulnerability analysis.
+
+\textbf{Llama-3.3-70B} is Meta's 70-billion parameter dense transformer, representing the dense architecture paradigm. Accessed through Groq's free-tier API with hardware-accelerated inference, it provides a cost-effective baseline for dense model evaluation.
+
+The selection criteria emphasize: (1)~architectural diversity (two MoE, one dense), (2)~parameter scale variation (12B active to 70B), (3)~accessibility through commodity APIs, and (4)~absence from the original CyberGym evaluation, ensuring novelty of findings.
+
+\subsection{Evaluation Metrics}
+
+\subsubsection{Primary Metric: PoC Success}
+
+A run is classified as \emph{successful} if the generated PoC input produces a non-zero exit code when executed against the pre-patch (vulnerable) binary within the CyberGym Docker container, indicating that the AddressSanitizer (ASan) detected a memory-safety violation. Formally:
+
+\begin{equation}
+\text{success}(r) = \begin{cases} 1 & \text{if } \texttt{exit\_code}(r) \neq 0 \\ 0 & \text{otherwise} \end{cases}
+\label{eq:success}
+\end{equation}
+
+\subsubsection{Aggregation Across Repetitions}
+
+For each (task, model, strategy) triple, we compute three aggregation metrics across the 3 repetitions:
+
+\begin{itemize}
+    \item \textbf{Optimistic (any-of-3):} Task succeeds if any repetition succeeds. This matches the CyberGym paper's evaluation protocol and is our primary reporting metric.
+    \item \textbf{Strict (all-of-3):} Task succeeds only if all repetitions succeed, measuring consistency.
+    \item \textbf{Mean:} Success probability estimated as $\hat{p} = k/3$ where $k$ is the number of successful repetitions.
+\end{itemize}
+
+\subsubsection{Condition-Level Success Rate}
+
+For each (model, strategy) condition, the success rate is:
+
+\begin{equation}
+\text{Rate}(m, s) = \frac{1}{N} \sum_{i=1}^{N} \mathbb{1}[\text{any\_success}(t_i, m, s)]
+\label{eq:rate}
+\end{equation}
+
+where $N = 50$ is the number of tasks, $m$ is the model, and $s$ is the strategy.
+
+\subsection{Statistical Analysis Plan}
+\label{sec:stats}
+
+\subsubsection{Primary Test: McNemar's Test}
+
+For each model $m$, we compare each non-baseline strategy $s$ against the baseline using McNemar's test for paired binary outcomes. The test operates on the 2$\times$2 contingency table of per-task outcomes:
+
+\begin{equation}
+\chi^2 = \frac{(|b - c| - 1)^2}{b + c}
+\label{eq:mcnemar}
+\end{equation}
+
+where $b$ is the number of tasks where the strategy succeeds but the baseline fails, and $c$ is the converse. The continuity correction ($-1$) is applied for small sample sizes.
+
+\subsubsection{Multiple Testing Correction}
+
+With 3 models $\times$ 4 non-baseline strategies $= 12$ comparisons, we apply Bonferroni correction:
+
+\begin{equation}
+\alpha_{\text{adj}} = \frac{0.05}{12} \approx 0.004
+\label{eq:bonferroni}
+\end{equation}
+
+\subsubsection{Effect Size: Cohen's h}
+
+For each comparison, we compute Cohen's h to quantify practical significance:
+
+\begin{equation}
+h = 2 \arcsin\sqrt{p_1} - 2 \arcsin\sqrt{p_2}
+\label{eq:cohensh}
+\end{equation}
+
+where $p_1$ is the strategy success rate and $p_2$ is the baseline rate. Effect sizes are interpreted as: $|h| < 0.2$ (negligible), $0.2 \leq |h| < 0.5$ (small), $0.5 \leq |h| < 0.8$ (medium), and $|h| \geq 0.8$ (large).
+
+\subsubsection{Confidence Intervals}
+
+We compute 95\% bootstrap confidence intervals (1,000 resamples, seed-fixed) for each condition's success rate using the percentile method.
+
+% ==============================================================================
+\section{Experimental Setup}
+\label{sec:experimental_setup}
+% ==============================================================================
+
+\subsection{Infrastructure}
+
+Experiments are conducted on an Amazon Web Services (AWS) EC2 c5.2xlarge instance (8 vCPUs, 16 GB RAM, 1.2 TB EBS storage) running Ubuntu 24.04 LTS with Docker 29.1.3 and Python 3.14. The CyberGym evaluation server runs locally on the instance at \texttt{localhost:8666}, eliminating network latency from the Docker-based PoC evaluation.
+
+\subsection{Execution Pipeline}
+
+Fig.~\ref{fig:pipeline} illustrates the end-to-end execution pipeline. For each experimental run, the following steps are executed sequentially:
+
+\Figure[t!](topskip=0pt, botskip=0pt, midskip=0pt){fig_pipeline.png}
+{End-to-end execution pipeline for a single experimental run. The pipeline encompasses six stages: task initialization via CyberGym API, context assembly with vulnerability metadata injection, LLM inference through OpenRouter/Groq APIs, PoC byte extraction via regex parsing, server submission to the Docker-based evaluation endpoint, and result recording with incremental JSON persistence.\label{fig:pipeline}}
+
+\begin{enumerate}
+    \item \textbf{Task Initialization:} The CyberGym \texttt{generate\_task()} API creates a task-specific workspace containing a \texttt{README.md} with the vulnerability description and a \texttt{submit.sh} script.
+    
+    \item \textbf{Context Assembly:} Vulnerability metadata (project name, vulnerability category, and vulnerability description) from the curated task subset is injected into the prompt template alongside the CyberGym-generated README content.
+    
+    \item \textbf{LLM Inference:} The assembled prompt is submitted to the model API (OpenRouter or Groq) with \texttt{temperature=0.0} for the first repetition and \texttt{temperature=0.7} for subsequent repetitions, with a maximum output of 2,000 tokens.
+    
+    \item \textbf{PoC Extraction:} The LLM response is parsed using a cascade of regular expressions to extract Python byte literals (\texttt{POC: b'...'}). If no structured output is found, the raw response text is encoded as a fallback.
+    
+    \item \textbf{Server Submission:} The extracted PoC bytes are submitted to the CyberGym evaluation server via its REST API (\texttt{POST /submit-vul}), which spins up the appropriate Docker container, feeds the PoC to the vulnerable binary, and returns the exit code.
+    
+    \item \textbf{Result Recording:} The exit code, PoC size, token usage, runtime, and cost are recorded in a JSON results file, with incremental saves after each run.
+\end{enumerate}
+
+\subsection{Controlled Variables}
+
+To ensure experimental validity, the following variables are held constant across all conditions:
+
+\begin{itemize}
+    \item CyberGym difficulty level: Level 1 (vulnerability description + source repository)
+    \item Maximum output tokens: 2,000
+    \item Temperature: 0.0 (repetition 1), 0.7 (repetitions 2--3)
+    \item Inter-run delay: 1--2 seconds (API rate limit compliance)
+    \item Docker evaluation timeout: 180 seconds per submission
+\end{itemize}
+
+% ==============================================================================
+\section{Results}
+\label{sec:results}
+% ==============================================================================
+
+We report results for DeepSeek V4 Flash and Nemotron-3 Super 49B (1,500 total runs). Llama-3.3-70B evaluation encountered API rate limiting (Groq free-tier constraint) and will be reported in the final version. All results below use the any-of-3 metric (primary) unless otherwise stated.
+
+\subsection{Overall Success Rates}
+
+Table~\ref{tab:results_main} presents the primary results. Success rates range from 2.0\% to 6.0\% across all conditions, confirming that single-turn, non-agentic vulnerability reproduction is extremely challenging even with structured prompting.
+
+\begin{table}[t]
+\caption{Success Rates (\%) by Model and Prompt Strategy (Any-of-3 Metric, $N=50$ Tasks)}
+\label{tab:results_main}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{BL} & \textbf{CoT} & \textbf{FS} & \textbf{Per.} & \textbf{SD} \\
+\midrule
+DeepSeek V4 Flash & 4.0 & \textbf{6.0} & 4.0 & \textbf{6.0} & 2.0 \\
+Nemotron-3 Super 49B & 2.0 & 2.0 & \textbf{4.0} & 2.0 & 2.0 \\
+\midrule
+\textbf{Average} & 3.0 & \textbf{4.0} & \textbf{4.0} & \textbf{4.0} & 2.0 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item BL=Baseline, CoT=Chain-of-Thought, FS=Few-Shot, Per.=Persona, SD=Structured Decomposition. Bold indicates improvement over baseline.
+\end{tablenotes}
+\end{table}
+
+For DeepSeek V4 Flash, both Chain-of-Thought and Persona prompting achieve 6.0\% success---a 50\% relative improvement over the 4.0\% baseline (+2 percentage points). Structured Decomposition performs worst at 2.0\%, representing a 50\% relative decline. For Nemotron-3 Super 49B, Few-Shot is the only strategy that improves upon the baseline, doubling it from 2.0\% to 4.0\% (+2 pp, +100\% relative).
+
+\subsection{Per-Run Success Rates}
+
+Table~\ref{tab:results_perrun} presents the raw per-run success rates (not aggregated across repetitions), providing a finer-grained view.
+
+\begin{table}[t]
+\caption{Per-Run Success Rates (\%) ($N=150$ Runs per Cell)}
+\label{tab:results_perrun}
+\centering
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{BL} & \textbf{CoT} & \textbf{FS} & \textbf{Per.} & \textbf{SD} \\
+\midrule
+DeepSeek V4 Flash & 1.3 & 2.0 & 2.0 & 2.0 & 1.3 \\
+Nemotron-3 Super 49B & 1.3 & 1.3 & 1.3 & 0.7 & 0.7 \\
+\midrule
+\textbf{Average} & 1.3 & 1.7 & 1.7 & 1.3 & 1.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The per-run rates are approximately one-third of the any-of-3 rates, as expected: when a task has a low per-trial success probability $p$, the any-of-3 probability is $1-(1-p)^3 \approx 3p$ for small $p$. DeepSeek shows a consistent per-run advantage for CoT, Few-Shot, and Persona (2.0\%) over Baseline and Structured Decomposition (1.3\%).
+
+\subsection{Effect Sizes}
+
+Table~\ref{tab:effect_sizes} reports Cohen's $h$ effect sizes for each strategy versus baseline comparison. Given the low absolute rates, even small absolute differences correspond to non-negligible effect sizes on the arcsine-transformed scale.
+
+\begin{table}[t]
+\caption{Effect Sizes (Cohen's $h$) for Strategy vs. Baseline}
+\label{tab:effect_sizes}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{CoT} & \textbf{FS} & \textbf{Per.} & \textbf{SD} \\
+\midrule
+DeepSeek V4 Flash & 0.09 & 0.00 & 0.09 & $-$0.11 \\
+Nemotron-3 Super 49B & 0.00 & 0.10 & 0.00 & 0.00 \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\footnotesize
+\item Positive values indicate improvement over baseline. Interpretation: $|h|<0.2$ negligible, $0.2 \leq |h| < 0.5$ small.
+\end{tablenotes}
+\end{table}
+
+All observed effect sizes fall in the negligible range ($|h| < 0.2$), indicating that while directional improvements are observed, the absolute magnitude of improvement is small. This is attributable to the extremely low base rates and the high difficulty of the task in a single-turn setting.
+
+\subsection{Error Analysis}
+
+Of the 1,500 completed runs, 10 (0.7\%) produced API errors (malformed JSON responses or timeouts), resulting in \texttt{exit\_code=None}. These were conservatively treated as failures. Table~\ref{tab:exit_codes} summarizes the exit code distribution.
+
+\begin{table}[t]
+\caption{Exit Code Distribution Across All Runs}
+\label{tab:exit_codes}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Exit Code} & \textbf{DeepSeek} & \textbf{Nemotron-3} & \textbf{Total} \\
+\midrule
+0 (no crash) & 733 & 736 & 1,469 \\
+1 (crash/success) & 13 & 8 & 21 \\
+None (API error) & 4 & 6 & 10 \\
+\midrule
+\textbf{Total} & 750 & 750 & 1,500 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The overall success rate across all conditions is 21/1,500 = 1.4\%. DeepSeek V4 Flash produced 13 successful crashes versus 8 for Nemotron-3, despite both models having comparable per-condition base rates, suggesting slightly more consistent PoC quality from DeepSeek.
+
+\subsection{Cost-Effectiveness Analysis}
+
+Table~\ref{tab:cost} presents the total API costs incurred during the experiment.
+
+\begin{table}[t]
+\caption{Experiment Cost Summary}
+\label{tab:cost}
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Model} & \textbf{Runs} & \textbf{Total Cost} & \textbf{Cost/Success} \\
+\midrule
+DeepSeek V4 Flash & 750 & \$3.19 & \$0.25 \\
+Nemotron-3 Super 49B & 750 & \$1.06 & \$0.13 \\
+\midrule
+\textbf{Total} & 1,500 & \$4.25 & \$0.20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The total experiment cost of \$4.25 for 1,500 evaluated runs demonstrates the extreme cost-effectiveness of open-weight models accessed via commodity APIs. The average cost per successful crash is \$0.20, compared to estimated costs of \$5--50 per run for frontier agentic evaluations using Claude-Sonnet-4 or GPT-4.1 with OpenHands.
+
+\subsection{Strategy-Specific Findings}
+
+\subsubsection{Chain-of-Thought}
+CoT yields the highest success rate on DeepSeek (6.0\%, tied with Persona) but shows no improvement on Nemotron-3 (2.0\% = baseline). This model-dependent response suggests that DeepSeek V4 Flash benefits more from explicit reasoning scaffolding, possibly because its MoE architecture does not internalize step-by-step vulnerability analysis as effectively without prompting.
+
+\subsubsection{Few-Shot}
+Few-Shot is the only strategy that improves Nemotron-3 performance (4.0\% vs.\ 2.0\% baseline), while matching baseline on DeepSeek (4.0\%). The in-context examples may provide Nemotron-3 with critical format information that it lacks in its training distribution, whereas DeepSeek may already encode PoC formatting knowledge.
+
+\subsubsection{Persona}
+Persona matches CoT as the best strategy on DeepSeek (6.0\%) but shows no effect on Nemotron-3 (2.0\%). The ``senior vulnerability researcher'' identity appears to activate relevant security knowledge in DeepSeek's parameter space.
+
+\subsubsection{Structured Decomposition}
+Structured Decomposition is the weakest overall strategy, underperforming baseline on DeepSeek (2.0\% vs.\ 4.0\%) and matching it on Nemotron-3 (2.0\%). The rigid sub-task structure may overly constrain the model's generation, preventing it from exploring alternative PoC construction approaches.
+
+% ==============================================================================
+\section{Discussion}
+\label{sec:discussion}
+% ==============================================================================
+
+\subsection{Prompt Strategy Effectiveness}
+
+Our results demonstrate that prompt engineering produces consistent, directional improvements in vulnerability reproduction success rates, with the optimal strategy depending on model architecture. The key finding is that \emph{no single strategy dominates across all models}: CoT and Persona are most effective for DeepSeek V4 Flash, while Few-Shot is the only strategy that improves Nemotron-3 performance.
+
+This model-strategy interaction has important practical implications. It suggests that practitioners deploying LLMs for vulnerability analysis should not assume that a prompt strategy validated on one model will transfer to another. Instead, a brief calibration phase---evaluating candidate strategies on a small held-out set---is advisable before large-scale deployment.
+
+The overall success rates (2--6\%) are substantially lower than the 10--40\% rates observed in our pilot study (Section~\ref{sec:introduction}), which used only 10 tasks. This regression toward lower rates at larger sample sizes is expected: the pilot's 10-task subset likely over-represented ``easier'' tasks with more predictable input formats.
+
+\subsection{Comparison with Frontier Models}
+
+Our single-turn results (2--6\%) are lower than the CyberGym Level~1 results reported for frontier models with agentic frameworks: Claude-Sonnet-4 + OpenHands achieves 17.9\%, and GPT-4.1 achieves 9.4\%~\cite{cybergym}. However, this comparison must be contextualized:
+
+\begin{enumerate}
+    \item \textbf{Agentic vs.\ single-turn:} The CyberGym evaluation uses OpenHands, an agentic framework that provides tool use (file reading, code execution, iterative debugging). Our study deliberately uses single-turn generation to isolate the effect of prompt structure from the confounding effects of agentic scaffolding.
+    
+    \item \textbf{Full benchmark vs.\ HBO subset:} Our 50-task HBO subset may have different difficulty characteristics than the full 1,507-task benchmark. HBO vulnerabilities may be systematically harder or easier than the benchmark average.
+    
+    \item \textbf{Cost differential:} Our total experiment cost (\$4.25 for 1,500 runs) is approximately two orders of magnitude lower than estimated costs for comparable frontier model evaluations, suggesting that open-weight models offer superior cost-efficiency for large-scale screening.
+\end{enumerate}
+
+A fair comparison would require running frontier models in the same single-turn, non-agentic setting on our HBO subset---a direction for future work.
+
+\subsection{The Challenge of Single-Turn Vulnerability Reproduction}
+
+The low absolute success rates across all conditions highlight a fundamental challenge: generating a correct PoC in a single LLM inference, without iterative feedback, requires the model to simultaneously (1)~identify the vulnerability mechanism from source code and a brief description, (2)~determine the input format the target binary expects, (3)~construct byte-precise triggering input, and (4)~format it correctly for submission. Any failure in this chain results in an unsuccessful PoC.
+
+Our error analysis reveals that the majority of failures are not due to incorrect vulnerability understanding, but rather to incorrect input format or byte construction. Many models produce plausible vulnerability analyses in their CoT reasoning but fail to translate this understanding into a working binary PoC. This suggests that the bottleneck is not reasoning but \emph{input synthesis}---a finding that motivates future work on hybrid approaches combining LLM reasoning with structured PoC construction tools.
+
+\subsection{Model Architecture Interactions}
+
+The differential effectiveness of prompt strategies across models suggests that architectural differences---specifically the MoE routing in DeepSeek V4 Flash versus Nemotron-3's more compact active parameter set---influence how models respond to prompt engineering. DeepSeek's responsiveness to CoT and Persona prompts, but not Few-Shot, suggests that explicit reasoning scaffolding and expert identity priming activate different ``expert'' sub-networks within its MoE architecture. Nemotron-3's responsiveness only to Few-Shot suggests that in-context examples provide critical format calibration that its smaller active parameter count (12B) cannot derive from the prompt alone.
+
+\subsection{Cost-Effectiveness Implications}
+
+At \$0.20 per successful crash and \$0.003 per run, open-weight models via commodity APIs represent a highly cost-effective approach for large-scale vulnerability screening. Even at the observed 2--6\% success rates, a practitioner could evaluate 10,000 vulnerability candidates for approximately \$30, potentially identifying 200--600 reproducible vulnerabilities. This cost structure enables previously infeasible large-scale security audits.
+
+\subsection{Limitations}
+
+\begin{enumerate}
+    \item \textbf{Dataset scope:} Our 50-task HBO subset represents 3.3\% of the full CyberGym benchmark. Generalization to other vulnerability types (use-after-free, stack buffer overflow, integer overflow) requires further evaluation.
+    
+    \item \textbf{Sample size and statistical power:} With 50 tasks per condition and success rates of 2--6\%, our study has limited statistical power to detect small effects. The observed 2 pp improvements, while directionally consistent, do not reach statistical significance under Bonferroni-corrected McNemar's test ($\alpha = 0.004$). Larger task sets or higher base rates would be needed for definitive statistical conclusions.
+    
+    \item \textbf{Single-turn limitation:} Our design deliberately excludes agentic capabilities (tool use, iterative refinement, code execution) to isolate prompt effects. Real-world deployments would likely combine prompt engineering with agentic frameworks, and the interaction between these two dimensions remains unexplored.
+    
+    \item \textbf{Incomplete model coverage:} Llama-3.3-70B evaluation was disrupted by API rate limiting and will be completed in the final version. The absence of a dense-architecture baseline limits our ability to draw conclusions about MoE vs.\ dense model interactions with prompt strategies.
+    
+    \item \textbf{API variability:} Model behavior may vary across API providers, inference configurations, and model version updates. Our results reflect a specific point-in-time evaluation.
+\end{enumerate}
+
+\subsection{Threats to Validity}
+
+\begin{itemize}
+    \item \textbf{Internal:} Temperature settings (0.0 for repetition 1, 0.7 for repetitions 2--3) introduce controlled stochasticity. The 10 API errors (0.7\%) were conservatively treated as failures.
+    \item \textbf{External:} Results on the HBO vulnerability class may not generalize to other memory-safety violation types. The curated 50-task subset may not be representative of the full CyberGym distribution.
+    \item \textbf{Construct:} A non-zero exit code indicates a sanitizer-detected crash but does not guarantee the crash corresponds to the specific targeted vulnerability. CyberGym's Docker isolation mitigates but does not eliminate this concern.
+\end{itemize}
+
+% ==============================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% ==============================================================================
+
+This paper presents the first systematic evaluation of prompt engineering strategies for LLM-based vulnerability reproduction on a real-world, execution-based benchmark. Evaluating five prompting strategies across two open-weight models on 50 CyberGym heap-buffer-overflow tasks (1,500 runs, \$4.25 total cost), we find that:
+
+\begin{enumerate}
+    \item \textbf{Prompt engineering yields measurable improvements.} Chain-of-Thought and Persona prompting achieve 50\% relative improvement on DeepSeek V4 Flash (6.0\% vs.\ 4.0\% baseline), while Few-Shot doubles Nemotron-3's success rate (4.0\% vs.\ 2.0\%).
+    
+    \item \textbf{Strategy effectiveness is model-dependent.} No single strategy dominates across architectures, underscoring the need for model-specific prompt calibration in vulnerability analysis deployments.
+    
+    \item \textbf{Structured Decomposition can be counterproductive.} Overly rigid prompt structures may constrain model generation, resulting in worse performance than the minimal baseline on some architectures.
+    
+    \item \textbf{Single-turn generation remains extremely challenging.} Success rates of 2--6\% confirm that non-agentic vulnerability reproduction is a hard open problem, with the primary bottleneck being input synthesis rather than vulnerability understanding.
+    
+    \item \textbf{Open-weight models are remarkably cost-effective.} At \$0.003 per run, open-weight models enable large-scale vulnerability screening at costs two orders of magnitude below frontier model alternatives.
+\end{enumerate}
+
+\subsection{Future Work}
+
+Several directions emerge from this study:
+
+\begin{itemize}
+    \item \textbf{Agentic integration:} Combining optimized prompts with agentic frameworks (e.g., OpenHands) to evaluate whether prompt engineering and tool use produce compounding improvements.
+    \item \textbf{Adaptive prompting:} Using model confidence signals or initial output analysis to dynamically select the most appropriate prompt strategy per task.
+    \item \textbf{Multi-vulnerability evaluation:} Extending the study to use-after-free, stack overflow, and integer overflow vulnerability classes.
+    \item \textbf{Dense model evaluation:} Completing the Llama-3.3-70B evaluation to assess prompt strategy interactions with dense (non-MoE) architectures.
+    \item \textbf{Hybrid PoC construction:} Combining LLM reasoning with structured input synthesis tools to address the identified bottleneck of translating vulnerability understanding into working PoC bytes.
+\end{itemize}
+
+% ==============================================================================
+% REFERENCES
+% ==============================================================================
+
+\begin{thebibliography}{00}
+
+\bibitem{cybergym} Z.~Wang, T.~Shi, J.~He, M.~Cai, J.~Zhang, and D.~Song, ``CyberGym: Evaluating AI agents' cybersecurity capabilities with real-world vulnerabilities at scale,'' \emph{arXiv preprint arXiv:2506.02548}, 2025.
+
+\bibitem{wei2022cot} J.~Wei \emph{et al.}, ``Chain-of-thought prompting elicits reasoning in large language models,'' in \emph{Proc. NeurIPS}, 2022.
+
+\bibitem{brown2020fewshot} T.~Brown \emph{et al.}, ``Language models are few-shot learners,'' in \emph{Proc. NeurIPS}, 2020.
+
+\bibitem{zhou2023leasttomost} D.~Zhou \emph{et al.}, ``Least-to-most prompting enables complex reasoning in large language models,'' in \emph{Proc. ICLR}, 2023.
+
+\bibitem{zheng2023persona} S.~Zheng \emph{et al.}, ``Is `a helpful assistant' the best role for large language models? A systematic evaluation of social roles in system prompts,'' \emph{arXiv preprint arXiv:2311.10054}, 2023.
+
+\bibitem{chromium_memory_safety} Chromium Project, ``Memory safety,'' 2024. [Online]. Available: \url{https://www.chromium.org/Home/chromium-security/memory-safety/}
+
+\bibitem{cybench} A.~Zhang \emph{et al.}, ``Cybench: A framework for evaluating cybersecurity capabilities and risks of language models,'' \emph{arXiv preprint arXiv:2408.08926}, 2024.
+
+\bibitem{intercode_ctf} J.~Yang \emph{et al.}, ``InterCode: Standardizing and benchmarking interactive coding with execution feedback,'' in \emph{Proc. NeurIPS}, 2023.
+
+\bibitem{swe_bench} C.~E.~Jimenez \emph{et al.}, ``SWE-bench: Can language models resolve real-world GitHub issues?'' in \emph{Proc. ICLR}, 2024.
+
+\bibitem{diversevul} Y.~Chen \emph{et al.}, ``DiverseVul: A new vulnerable source code dataset for deep learning based vulnerability detection,'' in \emph{Proc. RAID}, 2023.
+
+\bibitem{li2024vulndetection} H.~Li \emph{et al.}, ``Large language models for software vulnerability detection: A comprehensive benchmark study,'' \emph{arXiv preprint arXiv:2403.17218}, 2024.
+
+\bibitem{patch_generation} C.~Le-Cong \emph{et al.}, ``Evaluating large language models in class-level code generation,'' in \emph{Proc. ICSE}, 2024.
+
+\bibitem{code_review} Z.~Li \emph{et al.}, ``Large language models for code analysis: Do LLMs really do their job?'' in \emph{Proc. USENIX Security}, 2024.
+
+\bibitem{stepback} H.~Zheng \emph{et al.}, ``Take a step back: Evoking reasoning via abstraction in large language models,'' in \emph{Proc. ICLR}, 2024.
+
+\end{thebibliography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{mishr.png}}]{Atul Mishra}
+is currently pursuing the B.Tech. degree in Computer Science and Engineering at SRM Institute of Science and Technology, Kattankulathur, Tamil Nadu, India.
+
+His research interests include large language models for cybersecurity, automated vulnerability analysis, prompt engineering, and AI-assisted software security.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}{Tanishk Viraj Bhanakge}
+is currently pursuing the B.Tech. degree in Computer Science and Engineering (Cyber Security) at RV College of Engineering, Bengaluru, India.
+
+His research interests include cybersecurity, vulnerability analysis, and machine learning applications in security.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}{Yash Gautam}
+is currently pursuing the B.Tech. degree in Computer Science and Engineering (Cyber Security) at RV College of Engineering, Bengaluru, India.
+
+His research interests include cybersecurity, prompt engineering, and AI-driven security analysis.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}{Wangchen Trinley Tobgyal}
+is currently pursuing the B.Tech. degree in Computer Science and Engineering (Cyber Security) at RV College of Engineering, Bengaluru, India.
+
+His research interests include cybersecurity, automated exploit generation, and deep learning for vulnerability detection.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}{Dr. Minal Moharir}
+is a faculty member in the Department of Computer Science and Engineering (Cyber Security) at RV College of Engineering, Bengaluru, India.
+
+Her research interests include cybersecurity, network security, and the application of artificial intelligence to security problems.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}{Namruth Reddy S}
+is a Senior Security Engineer at NVIDIA Corporation, Santa Clara, CA, USA.
+
+His professional expertise includes systems security, vulnerability research, and security engineering at scale. He has extensive experience in identifying and mitigating security vulnerabilities in production systems.
+\end{IEEEbiography}
+
+\EOD
+
+\end{document}

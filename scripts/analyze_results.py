@@ -28,19 +28,32 @@ logger = logging.getLogger(__name__)
 
 
 def load_all_results(results_dir: Path) -> list[dict]:
-    """Load all experiment result JSON files from the results directory."""
-    results = []
+    """Load all experiment result JSON files from the results directory.
+    
+    Each file has structure: {metadata: {...}, summary: {...}, results: [{...}, ...]}
+    Returns a flat list of individual run result dicts.
+    """
+    all_runs = []
     for json_file in results_dir.rglob("*.json"):
         if json_file.name.startswith("."):
             continue
         try:
             with open(json_file, "r") as f:
                 data = json.load(f)
-                results.append(data)
+            # Handle nested format (results_*.json files)
+            if isinstance(data, dict) and "results" in data:
+                runs = data["results"]
+                all_runs.extend(runs)
+                logger.info(f"Loaded {len(runs)} runs from {json_file.name}")
+            elif isinstance(data, list):
+                all_runs.extend(data)
+                logger.info(f"Loaded {len(data)} runs from {json_file.name}")
+            else:
+                logger.warning(f"Skipping {json_file}: unexpected format")
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Skipping {json_file}: {e}")
-    logger.info(f"Loaded {len(results)} result files")
-    return results
+    logger.info(f"Total: {len(all_runs)} runs from {results_dir}")
+    return all_runs
 
 
 # ──────────────────────────────────────────────

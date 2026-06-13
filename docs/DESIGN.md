@@ -1,101 +1,70 @@
 # Experiment Design & Statistical Plan
 
-> **Last Updated:** 2026-05-02 | **Status:** Finalized
+## Research Design
 
-## 1. Experimental Design
-
-**Repeated-measures factorial design:**
-- **Factor A — Prompt Strategy:** 5 levels (baseline, CoT, few-shot, persona, structured decomposition)
-- **Factor B — Model:** 3 levels (DeepSeek V4 Flash, Llama-3.3-70B, Nemotron-3 Super 120B)
-- **Repeated measure:** Same 100 task instances across all conditions
-- **Repetitions:** 3 per condition (LLM stochasticity control)
-
-### Independent Variables
+**Repeated-measures factorial design** with two independent variables:
 
 | Variable | Type | Levels |
 |----------|------|--------|
-| Prompt Strategy | Categorical (5) | baseline, cot, few_shot, persona, structured_decomposition |
-| Model | Categorical (3) | deepseek-v4-flash, llama-3.3-70b, nemotron-3-super-120b |
+| **Prompt Strategy** | Categorical (5) | Baseline, CoT, Few-Shot, Persona, Structured Decomposition |
+| **Model** | Categorical (4) | DeepSeek V4 Flash, Nemotron-3 Super 120B, Llama-3.3-70B, Nemotron-3 Ultra 550B |
 
-### Dependent Variables
+**Run matrix:** 50 tasks × 5 strategies × 4 models × 3 reps = **3,000 total runs**
 
-| Variable | Type | Measurement |
-|----------|------|-------------|
-| **Primary:** Success | Binary | PoC crashes pre-patch AND no crash post-patch |
-| Success rate | Proportion | Successes / total per condition |
-| Runtime | Continuous | Wall-clock seconds |
-| Token usage | Count | Input + output tokens |
-| API cost | Continuous | USD per run |
+## Models Under Evaluation
 
-### Controls (Held Constant)
+| Model | Architecture | Active Params | Provider | Cost/1M tok |
+|-------|-------------|:------------:|----------|:-----------:|
+| DeepSeek V4 Flash | MoE | Large | OpenRouter | $0.30/$0.90 |
+| Nemotron-3 Super 120B | MoE (120B total) | 12B | OpenRouter | $0.30/$0.90 |
+| Llama-3.3-70B | Dense | 70B | OpenRouter | $0.10/$0.32 |
+| Nemotron-3 Ultra 550B | MoE (550B total) | 55B | OpenRouter | $0.50/$2.50 |
+
+## Dataset
+
+- **Source:** CyberGym benchmark (1,507 tasks)
+- **Filter:** `heap-buffer-overflow` in `vulnerability_description`
+- **Final subset:** 50 HBO tasks, 100 Docker images
+- **Projects:** ≥10 distinct (libxaac, libredwg, opensc, pcapplusplus, etc.)
+
+## Evaluation Metrics
+
+### Primary: PoC Success
+- `exit_code ≠ 0` on vulnerable binary = crash = success
+
+### Aggregation: Any-of-3
+- Task succeeds if **any** of 3 repetitions succeeds (matches CyberGym protocol)
+
+### Statistical Tests
+1. **McNemar's test** — pairwise comparisons (strategy vs baseline per model)
+2. **Bonferroni correction** — α = 0.05/n_comparisons
+3. **Cohen's h** — effect size for proportions
+4. **Bootstrap CI** — 1,000 resamples, 95% percentile
+
+## Controlled Variables
 
 | Variable | Value | Rationale |
 |----------|-------|-----------|
-| CyberGym difficulty | Level 1 | Matches paper default |
-| OpenHands commit | `35b381f3` | Reproducibility |
-| Max iterations | 100 | Same as paper |
-| Timeout | 1200s | Same as paper |
-| Temperature | 0.0 | Minimize randomness |
-| Vuln type | HBO-READ only | Reduce heterogeneity |
-| PoC size | < 100 bytes | Maximize signal (paper Fig 7) |
+| CyberGym Level | 1 | Isolate prompt effects |
+| Temperature | Rep1=0.0, Rep2-3=0.7 | Balance determinism/diversity |
+| max_completion_tokens | 2,000 | Prevent runaway generation |
+| Inter-run delay | 2.0s | Respect rate limits |
+| Output format | `POC: b'...'` | Consistent across all prompts |
 
-## 2. Dataset Selection
+## Results Summary (Completed Models)
 
-### Inclusion Criteria
-1. Vulnerability type = "Heap-buffer-overflow", access = "READ"
-2. Ground-truth PoC size < 100 bytes
-3. Level 1 data available
-4. Docker image builds successfully
+### Any-of-3 Success Rates
 
-### Power Analysis (McNemar's Test)
-- Baseline rate: ~5% (estimated for open-weight)
-- Detectable effect: +5pp (5% → 10%)
-- α = 0.05, Power = 0.80
-- Required n: ~80 pairs → **Selected: 100 instances**
+| Model | BL | CoT | FS | Per | SD |
+|-------|:--:|:---:|:--:|:---:|:--:|
+| DeepSeek V4 Flash | 4.0% | **6.0%** | 4.0% | **6.0%** | 2.0% |
+| Nemotron-3 Super 120B | 2.0% | 2.0% | **4.0%** | 2.0% | 2.0% |
 
-### Stratification
-- No project > 15% of instances
-- Minimum 10 distinct projects
+### Effect Sizes (Cohen's h vs Baseline)
 
-## 3. Statistical Analysis Plan
+| Model | CoT | FS | Per | SD |
+|-------|:---:|:--:|:---:|:--:|
+| DeepSeek | 0.09 | 0.00 | 0.09 | -0.11 |
+| Nemotron-3 Super | 0.00 | 0.10 | 0.00 | 0.00 |
 
-### Primary: McNemar's Test
-For each (model, strategy) vs. (model, baseline):
-- 2×2 contingency table of per-instance outcomes
-- Bonferroni correction: α = 0.05/12 ≈ 0.004
-
-### Secondary
-- **Cochran's Q:** Overall strategy difference within each model
-- **Cohen's h:** Effect size (small=0.2, medium=0.5, large=0.8)
-- **Bootstrap 95% CI:** 1000 resamples per success rate
-
-### Interaction & Exploratory
-- Model × Strategy interaction table
-- Per-project breakdown
-- PoC size vs. strategy effectiveness correlation
-- Failure mode taxonomy
-- Cost-effectiveness: success per dollar
-
-## 4. Repetition Handling
-
-- **Primary metric:** "any of 3 runs succeeds" (optimistic, matches paper)
-- **Sensitivity:** "all 3 succeed" (strict consistency)
-- **Variance:** Per-task probability = successes/3, used for bootstrap
-
-## 5. Published Baselines (for context)
-
-| Model | Success Rate (Level 1) |
-|-------|----------------------|
-| GPT-4.1 | 9.4% |
-| Claude-3.7-Sonnet | 11.9% |
-| Claude-Sonnet-4 | 17.9% |
-
-Note: Our HBO-READ subset differs from full 1,507 — comparison is approximate.
-
-## 6. Reporting Standards
-
-- CONSORT-style flow diagram for instance filtering
-- Effect size + CI for all comparisons (not just p-values)
-- Full 15-condition results table (5 strategies × 3 models)
-- Per-instance results matrix in supplementary
-- All code and prompts in public repo
+All effects are in the negligible range (|h| < 0.2) — directionally consistent but small absolute magnitude due to the extreme difficulty of single-turn PoC generation.

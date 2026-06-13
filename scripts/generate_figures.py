@@ -62,9 +62,9 @@ STRATEGY_COLORS = {
 }
 
 MODEL_MARKERS = {
-    "deepseek-v3": "o",
+    "deepseek-v4-flash": "o",
     "llama-3.3-70b": "s",
-    "qwen2.5-coder-32b": "^",
+    "nemotron-3-super-120b": "^",
 }
 
 STRATEGY_LABELS = {
@@ -76,9 +76,9 @@ STRATEGY_LABELS = {
 }
 
 MODEL_LABELS = {
-    "deepseek-v3": "DeepSeek-V3",
+    "deepseek-v4-flash": "DeepSeek V4 Flash",
     "llama-3.3-70b": "Llama-3.3-70B",
-    "qwen2.5-coder-32b": "Qwen2.5-Coder-32B",
+    "nemotron-3-super-120b": "Nemotron-3 Super 120B",
 }
 
 
